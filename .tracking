@@ -1,0 +1,155 @@
+.github/workflows/publish_action.yml
+.gitignore
+LICENSE
+README.md
+__init__.py
+assets/distorch2_0.gif
+assets/distorch2_0.png
+assets/distorch_average.png
+assets/distorch_node.png
+assets/flux1_dev_Q8_0_benchmark.png
+assets/flux1_kontext_dev_benchmark.png
+assets/multigpu_icon.gif
+assets/multigpu_icon.png
+assets/multigpu_icon.webp
+assets/qwen_image_fp16_benchmark.png
+assets/qwen_image_fp8_benchmark.png
+assets/test_images/example_inpaint_MultiGPU.png
+assets/wan2_2_benchmark_v2.png
+assets/wan2_2_qwen_combo_benchmark.png
+checkpoint_multigpu.py
+ci/example_workflows_api/ComfyUI-Florence2 detailed_caption to flux_api.json
+ci/example_workflows_api/ComfyUI-GGUF flux unet dual_clip loaders_api.json
+ci/example_workflows_api/ComfyUI-GGUF qwen_image unet distorch2 cliploader_api.json
+ci/example_workflows_api/ComfyUI-WanVideoWrapper wanvideo2_2 I2V A14B GGUF_API.json
+ci/example_workflows_api/ComfyUI-WanVideoWrapper wanvideo_1_3B control_lora_api.json
+ci/example_workflows_api/ComfyUI-WanVideoWrapper wanvideo_T2V_API.json
+ci/example_workflows_api/flux unet dual_clip vae loaders_api.json
+ci/example_workflows_api/ltxvideo checkpointloadersimple distorch2_api.json
+ci/example_workflows_api/mochi checkpointloaderadvanced distorch2_api.json
+ci/example_workflows_api/qwen_image unet clip distorch2_api.json
+ci/example_workflows_api/sd15 checkpoint loader simple_api.json
+ci/example_workflows_api/sdxl checkpoint loader advanced_api.json
+ci/example_workflows_api/wan2_2 distorch2 double_unet no_cpu_api.json
+ci/example_workflows_api/wan2_2 t2i lightx2v lora distorch2_api.json
+ci/example_workflows_api/wan2_2 t2v lightx2v lora distorch2_api.json
+ci/extract_allocation.py
+ci/run_workflows.py
+ci/smoke_test.sh
+ci/summarize_log.py
+device_utils.py
+distorch_2.py
+example_workflows/ComfyUI-Florence2 detailed_caption to flux.jpg
+example_workflows/ComfyUI-Florence2 detailed_caption to flux.json
+example_workflows/ComfyUI-GGUF flux unet dual_clip loaders.jpg
+example_workflows/ComfyUI-GGUF flux unet dual_clip loaders.json
+example_workflows/ComfyUI-GGUF qwen_image unet distorch2 cliploader.jpg
+example_workflows/ComfyUI-GGUF qwen_image unet distorch2 cliploader.json
+example_workflows/ComfyUI-WanVideoWrapper wanvideo2_2 I2V A14B GGUF.jpg
+example_workflows/ComfyUI-WanVideoWrapper wanvideo2_2 I2V A14B GGUF.json
+example_workflows/ComfyUI-WanVideoWrapper wanvideo_1_3B control_lora.jpg
+example_workflows/ComfyUI-WanVideoWrapper wanvideo_1_3B control_lora.json
+example_workflows/ComfyUI-WanVideoWrapper wanvideo_1_3B control_lora.webm
+example_workflows/ComfyUI-WanVideoWrapper wanvideo_T2V.jpg
+example_workflows/ComfyUI-WanVideoWrapper wanvideo_T2V.json
+example_workflows/flux unet dual_clip vae loaders.jpg
+example_workflows/flux unet dual_clip vae loaders.json
+example_workflows/hunyuanvideo distorch DEPRECATED.jpg
+example_workflows/hunyuanvideo distorch DEPRECATED.json
+example_workflows/ltxvideo checkpointloadersimple distorch2.jpg
+example_workflows/ltxvideo checkpointloadersimple distorch2.json
+example_workflows/mochi checkpointloaderadvanced distorch2.jpg
+example_workflows/mochi checkpointloaderadvanced distorch2.json
+example_workflows/qwen_image unet clip distorch2.jpg
+example_workflows/qwen_image unet clip distorch2.json
+example_workflows/qwen_image_edit_2509 unet clip distorch2.jpg
+example_workflows/qwen_image_edit_2509 unet clip distorch2.json
+example_workflows/sd15 checkpoint loader simple.jpg
+example_workflows/sd15 checkpoint loader simple.json
+example_workflows/sdxl checkpoint loader advanced.jpg
+example_workflows/sdxl checkpoint loader advanced.json
+example_workflows/wan2_2 distorch2 double_unet no_cpu.jpg
+example_workflows/wan2_2 distorch2 double_unet no_cpu.json
+example_workflows/wan2_2 t2i lightx2v lora distorch2.jpg
+example_workflows/wan2_2 t2i lightx2v lora distorch2.json
+example_workflows/wan2_2 t2v lightx2v lora distorch2.jpg
+example_workflows/wan2_2 t2v lightx2v lora distorch2.json
+model_management_mgpu.py
+nodes.py
+pyproject.toml
+wanvideo.py
+web/docs/CLIPLoaderDisTorch2MultiGPU.md
+web/docs/CLIPLoaderGGUFDisTorch2MultiGPU.md
+web/docs/CLIPLoaderGGUFDisTorchMultiGPU.md
+web/docs/CLIPLoaderGGUFMultiGPU.md
+web/docs/CLIPLoaderMultiGPU.md
+web/docs/CLIPVisionLoaderDisTorch2MultiGPU.md
+web/docs/CLIPVisionLoaderMultiGPU.md
+web/docs/CheckpointLoaderAdvancedDisTorch2MultiGPU.md
+web/docs/CheckpointLoaderAdvancedMultiGPU.md
+web/docs/CheckpointLoaderNF4MultiGPU.md
+web/docs/CheckpointLoaderSimpleDisTorch2MultiGPU.md
+web/docs/CheckpointLoaderSimpleMultiGPU.md
+web/docs/ControlNetLoaderDisTorch2MultiGPU.md
+web/docs/ControlNetLoaderMultiGPU.md
+web/docs/DiffControlNetLoaderDisTorch2MultiGPU.md
+web/docs/DiffControlNetLoaderMultiGPU.md
+web/docs/DiffusersLoaderDisTorch2MultiGPU.md
+web/docs/DiffusersLoaderMultiGPU.md
+web/docs/DownloadAndLoadFlorence2ModelMultiGPU.md
+web/docs/DownloadAndLoadWav2VecModelMultiGPU.md
+web/docs/DualCLIPLoaderDisTorch2MultiGPU.md
+web/docs/DualCLIPLoaderGGUFDisTorch2MultiGPU.md
+web/docs/DualCLIPLoaderGGUFDisTorchMultiGPU.md
+web/docs/DualCLIPLoaderGGUFMultiGPU.md
+web/docs/DualCLIPLoaderMultiGPU.md
+web/docs/FantasyTalkingModelLoaderMultiGPU.md
+web/docs/Florence2ModelLoaderMultiGPU.md
+web/docs/LTXVLoaderMultiGPU.md
+web/docs/LoadFluxControlNetMultiGPU.md
+web/docs/LoadWanVideoClipTextEncoderMultiGPU.md
+web/docs/LoadWanVideoT5TextEncoderMultiGPU.md
+web/docs/MMAudioFeatureUtilsLoaderMultiGPU.md
+web/docs/MMAudioModelLoaderMultiGPU.md
+web/docs/MMAudioSamplerMultiGPU.md
+web/docs/PulidEvaClipLoaderMultiGPU.md
+web/docs/PulidInsightFaceLoaderMultiGPU.md
+web/docs/PulidModelLoaderMultiGPU.md
+web/docs/QuadrupleCLIPLoaderDisTorch2MultiGPU.md
+web/docs/QuadrupleCLIPLoaderGGUFDisTorch2MultiGPU.md
+web/docs/QuadrupleCLIPLoaderGGUFDisTorchMultiGPU.md
+web/docs/QuadrupleCLIPLoaderGGUFMultiGPU.md
+web/docs/QuadrupleCLIPLoaderMultiGPU.md
+web/docs/TripleCLIPLoaderDisTorch2MultiGPU.md
+web/docs/TripleCLIPLoaderGGUFDisTorch2MultiGPU.md
+web/docs/TripleCLIPLoaderGGUFDisTorchMultiGPU.md
+web/docs/TripleCLIPLoaderGGUFMultiGPU.md
+web/docs/TripleCLIPLoaderMultiGPU.md
+web/docs/UNETLoaderDisTorch2MultiGPU.md
+web/docs/UNETLoaderMultiGPU.md
+web/docs/UNetLoaderLP.md
+web/docs/UnetLoaderGGUFAdvancedDisTorch2MultiGPU.md
+web/docs/UnetLoaderGGUFAdvancedDisTorchMultiGPU.md
+web/docs/UnetLoaderGGUFAdvancedMultiGPU.md
+web/docs/UnetLoaderGGUFDisTorch2MultiGPU.md
+web/docs/UnetLoaderGGUFDisTorchMultiGPU.md
+web/docs/UnetLoaderGGUFMultiGPU.md
+web/docs/VAELoaderDisTorch2MultiGPU.md
+web/docs/VAELoaderMultiGPU.md
+web/docs/WanVideoBlockSwapMultiGPU.md
+web/docs/WanVideoClipVisionEncodeMultiGPU.md
+web/docs/WanVideoControlnetLoaderMultiGPU.md
+web/docs/WanVideoDecodeMultiGPU.md
+web/docs/WanVideoEncodeMultiGPU.md
+web/docs/WanVideoImageToVideoEncodeMultiGPU.md
+web/docs/WanVideoModelLoaderMultiGPU.md
+web/docs/WanVideoSamplerMultiGPU.md
+web/docs/WanVideoTextEncodeCachedMultiGPU.md
+web/docs/WanVideoTextEncodeMultiGPU.md
+web/docs/WanVideoTextEncodeSingleMultiGPU.md
+web/docs/WanVideoTinyVAELoaderMultiGPU.md
+web/docs/WanVideoUni3C_ControlnetLoaderMultiGPU.md
+web/docs/WanVideoVACEEncodeMultiGPU.md
+web/docs/WanVideoVAELoaderMultiGPU.md
+web/docs/Wav2VecModelLoaderMultiGPU.md
+wrappers.py
