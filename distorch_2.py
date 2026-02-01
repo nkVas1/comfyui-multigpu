@@ -20,6 +20,114 @@ from .device_utils import get_device_list, soft_empty_cache_multigpu
 from .model_management_mgpu import multigpu_memory_log, force_full_system_cleanup
 
 
+# =============================================================================
+# Universal Load List Parser - Handles all ComfyUI API versions
+# =============================================================================
+
+def parse_load_list_item(item):
+    """
+    Universal parser for _load_list() tuple items.
+    
+    ComfyUI's _load_list() format has changed across versions:
+    - Legacy (v1): (module_size, module_name, module_object, params)
+    - Current (v2): (module_size, priority, module_name, module_object, params, ...)
+    
+    This function auto-detects the format by analyzing element types:
+    - module_size: always int (bytes)
+    - module_name: always str
+    - module_object: always torch.nn.Module
+    - priority: int (new field, optional)
+    
+    Returns:
+        dict: {
+            'size': int,
+            'name': str,
+            'module': torch.nn.Module,
+            'params': any,
+            'raw': tuple (original item)
+        }
+    
+    Raises:
+        ValueError: If unable to parse the item format
+    """
+    if not isinstance(item, (tuple, list)) or len(item) < 3:
+        raise ValueError(f"Invalid _load_list item format: expected tuple/list with ≥3 elements, got {type(item).__name__} with {len(item) if hasattr(item, '__len__') else 'N/A'} elements")
+    
+    # Strategy: Find the string (module_name) and torch.nn.Module (module_object)
+    # The first int is always module_size
+    
+    module_size = None
+    module_name = None
+    module_object = None
+    params = None
+    
+    # First element is always size (int)
+    if isinstance(item[0], int):
+        module_size = item[0]
+    else:
+        raise ValueError(f"First element of _load_list item should be int (size), got {type(item[0]).__name__}")
+    
+    # Scan remaining elements to find name (str) and module (nn.Module)
+    for idx in range(1, len(item)):
+        elem = item[idx]
+        
+        if module_name is None and isinstance(elem, str):
+            module_name = elem
+        elif module_object is None and isinstance(elem, torch.nn.Module):
+            module_object = elem
+        elif module_name is not None and module_object is not None:
+            # Found both, remaining elements are params/extra data
+            if params is None:
+                params = item[idx:]
+            break
+    
+    # Fallback: if we have a string as second-to-last and Module as last (legacy-ish)
+    if module_name is None or module_object is None:
+        # Try legacy format detection
+        for idx in range(1, len(item)):
+            elem = item[idx]
+            if isinstance(elem, str) and module_name is None:
+                module_name = elem
+            elif hasattr(elem, 'weight') or hasattr(elem, 'parameters'):
+                # Duck-typing for Module-like objects
+                module_object = elem
+    
+    if module_name is None:
+        raise ValueError(f"Could not find module_name (str) in _load_list item: {[type(x).__name__ for x in item]}")
+    
+    if module_object is None:
+        raise ValueError(f"Could not find module_object (nn.Module) in _load_list item: {[type(x).__name__ for x in item]}")
+    
+    return {
+        'size': module_size,
+        'name': module_name,
+        'module': module_object,
+        'params': params,
+        'raw': item
+    }
+
+
+def parse_load_list(raw_block_list):
+    """
+    Parse entire _load_list() output into standardized format.
+    
+    Args:
+        raw_block_list: Output from model_patcher._load_list()
+        
+    Returns:
+        list[dict]: List of parsed items with keys: size, name, module, params, raw
+    """
+    parsed = []
+    for item in raw_block_list:
+        try:
+            parsed.append(parse_load_list_item(item))
+        except ValueError as e:
+            logger.warning(f"[MultiGPU DisTorch V2] Failed to parse _load_list item: {e}")
+            # Skip malformed items but continue processing
+            continue
+    return parsed
+
+
 def register_patched_safetensor_modelpatcher():
     """Register and patch the ModelPatcher for distributed safetensor loading"""
     from comfy.model_patcher import wipe_lowvram_weight, move_weight_functions
@@ -240,13 +348,18 @@ def register_patched_safetensor_modelpatcher():
             
             model_original_dtype = comfy.utils.weight_dtype(self.model.state_dict())
             high_precision_loras = getattr(self.model, "_distorch_high_precision_loras", True)
-            loading = self._load_list()
-            loading.sort(reverse=True)
-            for item in loading:
-                module_size = item[0]
-                module_name = item[1]
-                module_object = item[2]
-                params = item[3]
+            
+            # Parse the loading list using universal parser
+            loading_raw = self._load_list()
+            loading_parsed = parse_load_list(loading_raw)
+            # Sort by size descending (largest blocks first)
+            loading_parsed.sort(key=lambda x: x['size'], reverse=True)
+            
+            for block in loading_parsed:
+                module_size = block['size']
+                module_name = block['name']
+                module_object = block['module']
+                
                 if not unpatch_weights and hasattr(module_object, "comfy_patched_weights") and module_object.comfy_patched_weights == True:
                     block_target_device = device_assignments['block_assignments'].get(module_name, device_to)
                     current_module_device = None
@@ -318,24 +431,36 @@ def register_patched_safetensor_modelpatcher():
         logger.info("[MultiGPU Core Patching] Successfully patched ModelPatcher.partially_load")
 
 def _extract_clip_head_blocks(raw_block_list, compute_device):
-    """Identify and pre-assign CLIP head blocks to compute device returning head_blocks, distributable_blocks, block_assignments, and head_memory."""
+    """
+    Identify and pre-assign CLIP head blocks to compute device.
+    
+    CLIP models have embedding layers that must stay on the compute device for proper
+    inference. This function identifies these "head" blocks and separates them from
+    distributable blocks.
+    
+    Args:
+        raw_block_list: Parsed block list from parse_load_list()
+        compute_device: Target compute device string
+        
+    Returns:
+        tuple: (head_blocks, distributable_blocks, block_assignments, head_memory)
+    """
     head_keywords = ['embed', 'wte', 'wpe', 'token_embedding', 'position_embedding']
     head_blocks = []
     distributable_blocks = []
     head_memory = 0
     block_assignments = {}
     
-    for item in raw_block_list:
-        module_size = item[0]
-        module_name = item[1]
-        module_object = item[2]
-        params = item[3]
+    for block in raw_block_list:
+        module_name = block['name']
+        module_size = block['size']
+        
         if any(kw in module_name.lower() for kw in head_keywords):
-            head_blocks.append(item)
+            head_blocks.append(block)
             block_assignments[module_name] = compute_device
             head_memory += module_size
         else:
-            distributable_blocks.append(item)
+            distributable_blocks.append(block)
     
     return head_blocks, distributable_blocks, block_assignments, head_memory
 
@@ -430,9 +555,12 @@ def analyze_safetensor_loading(model_patcher, allocations_string, is_clip=False)
     memory_by_type = defaultdict(int)
     total_memory = 0
 
-    raw_block_list = model_patcher._load_list()
-    # БЕРЕМ НУЛЕВОЙ ЭЛЕМЕНТ (размер)
-    total_memory = sum(item[0] for item in raw_block_list)
+    # Parse the raw _load_list() output using universal parser
+    raw_block_list_raw = model_patcher._load_list()
+    parsed_block_list = parse_load_list(raw_block_list_raw)
+    
+    # Calculate total memory from parsed blocks
+    total_memory = sum(block['size'] for block in parsed_block_list)
 
     MIN_BLOCK_THRESHOLD = total_memory * 0.0001
     logger.debug(f"[MultiGPU DisTorch V2] Total model memory: {total_memory} bytes")
@@ -442,18 +570,18 @@ def analyze_safetensor_loading(model_patcher, allocations_string, is_clip=False)
     head_memory = 0
     block_assignments = {}
     if is_clip:
-        head_blocks, distributable_raw, block_assignments, head_memory = \
-            _extract_clip_head_blocks(raw_block_list, compute_device)
+        head_blocks, distributable_parsed, block_assignments, head_memory = \
+            _extract_clip_head_blocks(parsed_block_list, compute_device)
         logger.info(f"[MultiGPU DisTorch V2 CLIP] Preserving {len(head_blocks)} head layer(s) ({head_memory/(1024**2):.2f} MB) on compute device: {compute_device}")
     else:
-        distributable_raw = raw_block_list
+        distributable_parsed = parsed_block_list
 
-    # Build all_blocks list for summary (using full raw_block_list)
+    # Build all_blocks list for summary (using full parsed_block_list)
     all_blocks = []
-    for item in raw_block_list:
-        module_size = item[0]
-        module_name = item[1]
-        module_object = item[2]
+    for block in parsed_block_list:
+        module_size = block['size']
+        module_name = block['name']
+        module_object = block['module']
         
         block_type = type(module_object).__name__
         # Populate summary dictionaries
@@ -463,10 +591,10 @@ def analyze_safetensor_loading(model_patcher, allocations_string, is_clip=False)
 
     # Use distributable blocks for actual allocation (for CLIP, this excludes heads)
     distributable_all_blocks = []
-    for item in distributable_raw:
-        module_size = item[0]
-        module_name = item[1]
-        module_object = item[2]
+    for block in distributable_parsed:
+        module_size = block['size']
+        module_name = block['name']
+        module_object = block['module']
         distributable_all_blocks.append((module_name, module_object, type(module_object).__name__, module_size))
 
     block_list = [b for b in distributable_all_blocks if b[3] >= MIN_BLOCK_THRESHOLD]
@@ -595,9 +723,23 @@ def parse_memory_string(mem_str):
         return val
 
 def calculate_fraction_from_byte_expert_string(model_patcher, byte_str):
-    """Convert byte allocation string (e.g. 'cuda:1,4gb;cpu,*') to fractional VRAM allocation string respecting device order and byte quotas."""
+    """
+    Convert byte allocation string (e.g. 'cuda:1,4gb;cpu,*') to fractional VRAM allocation string.
+    
+    Respects device order and byte quotas. The wildcard device ('*') receives
+    any remaining model bytes after explicit allocations.
+    
+    Args:
+        model_patcher: ComfyUI ModelPatcher instance
+        byte_str: Allocation string like 'cuda:0,4gb;cuda:1,8gb;cpu,*'
+        
+    Returns:
+        str: Fractional allocation string like 'cuda:0,0.5;cuda:1,0.8;cpu,0.25'
+    """
+    # Parse using universal parser
     raw_block_list = model_patcher._load_list()
-    total_model_memory = sum(item[0] for item in raw_block_list)
+    parsed_blocks = parse_load_list(raw_block_list)
+    total_model_memory = sum(block['size'] for block in parsed_blocks)
     remaining_model_bytes = total_model_memory
 
     # Use a list of tuples to preserve the user-defined order
@@ -654,9 +796,22 @@ def calculate_fraction_from_byte_expert_string(model_patcher, byte_str):
     return allocations_string
 
 def calculate_fraction_from_ratio_expert_string(model_patcher, ratio_str):
-    """Convert ratio allocation string (e.g. 'cuda:0,25%;cpu,75%') describing model split to fractional VRAM allocation string."""
+    """
+    Convert ratio allocation string (e.g. 'cuda:0,25%;cpu,75%') to fractional VRAM allocation string.
+    
+    Distributes model across devices based on percentage splits.
+    
+    Args:
+        model_patcher: ComfyUI ModelPatcher instance
+        ratio_str: Ratio string like 'cuda:0,25%;cpu,75%'
+        
+    Returns:
+        str: Fractional allocation string
+    """
+    # Parse using universal parser
     raw_block_list = model_patcher._load_list()
-    total_model_memory = sum(item[0] for item in raw_block_list)
+    parsed_blocks = parse_load_list(raw_block_list)
+    total_model_memory = sum(block['size'] for block in parsed_blocks)
 
     raw_ratios = {}
     for allocation in ratio_str.split(';'):
